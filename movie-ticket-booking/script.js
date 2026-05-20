@@ -14,6 +14,7 @@ const movieSelect = document.getElementById('movie');
 
 const USERS_KEY = 'movie_booking_users';
 const SESSION_KEY = 'movie_booking_current_user';
+const DEFAULT_SALT = 'AAAAAAAAAAAAAAAAAAAAAA==';
 const FALLBACK_HASH = '0'.repeat(64);
 
 function readUsers() {
@@ -36,6 +37,43 @@ async function hashPassword(password) {
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, '0')
   ).join('');
+}
+
+function toHex(buffer) {
+  return Array.from(new Uint8Array(buffer), (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('');
+}
+
+function fromBase64(base64Value) {
+  return Uint8Array.from(atob(base64Value), (char) => char.charCodeAt(0));
+}
+
+function createSalt() {
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  return btoa(String.fromCharCode(...salt));
+}
+
+async function derivePasswordHash(password, salt) {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  const hashBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      hash: 'SHA-256',
+      salt: fromBase64(salt),
+      iterations: 120000,
+    },
+    keyMaterial,
+    256
+  );
+  return toHex(hashBits);
 }
 
 function timingSafeEqual(valueA, valueB) {
@@ -93,7 +131,11 @@ registerForm.addEventListener('submit', async (event) => {
     return;
   }
 
-  users[username] = await hashPassword(password);
+  const salt = createSalt();
+  users[username] = {
+    salt,
+    hash: await derivePasswordHash(password, salt),
+  };
   writeUsers(users);
   showMessage(authMessage, 'Registration successful! Please login.', true);
   switchToLoginTab();
@@ -104,16 +146,32 @@ loginForm.addEventListener('submit', async (event) => {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
   const users = readUsers();
-  const passwordHash = await hashPassword(password);
-  const storedHash = users[username] || FALLBACK_HASH;
-  const isValidUser = Boolean(users[username]) && timingSafeEqual(storedHash, passwordHash);
+  const userRecord = users[username];
+  const isLegacyUser = typeof userRecord === 'string';
+  const salt = !isLegacyUser && userRecord?.salt ? userRecord.salt : DEFAULT_SALT;
+  const passwordHash = await derivePasswordHash(password, salt);
+  const storedHash = !isLegacyUser && userRecord?.hash ? userRecord.hash : FALLBACK_HASH;
+  let isValidUser = Boolean(userRecord) && timingSafeEqual(storedHash, passwordHash);
+
+  if (isLegacyUser) {
+    const legacyHash = await hashPassword(password);
+    isValidUser = timingSafeEqual(userRecord, legacyHash);
+    if (isValidUser) {
+      const migratedSalt = createSalt();
+      users[username] = {
+        salt: migratedSalt,
+        hash: await derivePasswordHash(password, migratedSalt),
+      };
+      writeUsers(users);
+    }
+  }
 
   if (!isValidUser) {
     showMessage(authMessage, 'Invalid username or password.');
     return;
   }
 
-  localStorage.setItem(SESSION_KEY, username);
+  sessionStorage.setItem(SESSION_KEY, username);
   showMessage(authMessage, 'Login successful!', true);
   enterBooking(username);
 });
@@ -135,13 +193,13 @@ bookingForm.addEventListener('submit', (event) => {
 });
 
 logoutButton.addEventListener('click', () => {
-  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
   exitBooking();
   switchToLoginTab();
   showMessage(authMessage, 'You are logged out.', true);
 });
 
-const activeUser = localStorage.getItem(SESSION_KEY);
+const activeUser = sessionStorage.getItem(SESSION_KEY);
 if (activeUser) {
   enterBooking(activeUser);
 } else {
