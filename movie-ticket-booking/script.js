@@ -14,6 +14,7 @@ const movieSelect = document.getElementById('movie');
 
 const USERS_KEY = 'movie_booking_users';
 const SESSION_KEY = 'movie_booking_current_user';
+const FALLBACK_HASH = '0'.repeat(64);
 
 function readUsers() {
   const raw = localStorage.getItem(USERS_KEY);
@@ -27,6 +28,26 @@ function writeUsers(users) {
 function showMessage(element, text, success = false) {
   element.textContent = text;
   element.style.color = success ? '#15803d' : '#b91c1c';
+}
+
+async function hashPassword(password) {
+  const bytes = new TextEncoder().encode(password);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('');
+}
+
+function timingSafeEqual(valueA, valueB) {
+  if (valueA.length !== valueB.length) {
+    return false;
+  }
+
+  let mismatch = 0;
+  for (let index = 0; index < valueA.length; index += 1) {
+    mismatch |= valueA.charCodeAt(index) ^ valueB.charCodeAt(index);
+  }
+  return mismatch === 0;
 }
 
 function switchToLoginTab() {
@@ -61,7 +82,7 @@ function exitBooking() {
 showLoginButton.addEventListener('click', switchToLoginTab);
 showRegisterButton.addEventListener('click', switchToRegisterTab);
 
-registerForm.addEventListener('submit', (event) => {
+registerForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const username = document.getElementById('register-username').value.trim();
   const password = document.getElementById('register-password').value;
@@ -72,19 +93,22 @@ registerForm.addEventListener('submit', (event) => {
     return;
   }
 
-  users[username] = password;
+  users[username] = await hashPassword(password);
   writeUsers(users);
   showMessage(authMessage, 'Registration successful! Please login.', true);
   switchToLoginTab();
 });
 
-loginForm.addEventListener('submit', (event) => {
+loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
   const users = readUsers();
+  const passwordHash = await hashPassword(password);
+  const storedHash = users[username] || FALLBACK_HASH;
+  const isValidUser = Boolean(users[username]) && timingSafeEqual(storedHash, passwordHash);
 
-  if (users[username] !== password) {
+  if (!isValidUser) {
     showMessage(authMessage, 'Invalid username or password.');
     return;
   }
