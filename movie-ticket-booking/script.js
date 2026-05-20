@@ -16,6 +16,7 @@ const USERS_KEY = 'movie_booking_users';
 const SESSION_KEY = 'movie_booking_current_user';
 const DEFAULT_SALT = 'AAAAAAAAAAAAAAAAAAAAAA==';
 const FALLBACK_HASH = '0'.repeat(64);
+const PBKDF2_ITERATIONS = 600000;
 
 function readUsers() {
   const raw = localStorage.getItem(USERS_KEY);
@@ -68,7 +69,7 @@ async function derivePasswordHash(password, salt) {
       name: 'PBKDF2',
       hash: 'SHA-256',
       salt: fromBase64(salt),
-      iterations: 120000,
+      iterations: PBKDF2_ITERATIONS,
     },
     keyMaterial,
     256
