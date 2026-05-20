@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Movie Ticket Booking</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Movie Ticket Booking System</h1>
+
+      <section id="auth-section" class="card">
+        <div class="tabs" role="tablist" aria-label="Authentication options">
+          <button id="show-login" class="tab active" type="button">Login</button>
+          <button id="show-register" class="tab" type="button">Register</button>
+        </div>
+
+        <form id="login-form" class="form" autocomplete="off">
+          <label for="login-username">Username</label>
+          <input id="login-username" type="text" required />
+
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" required />
+
+          <button type="submit">Login</button>
+        </form>
+
+        <form id="register-form" class="form hidden" autocomplete="off">
+          <label for="register-username">Username</label>
+          <input id="register-username" type="text" minlength="3" required />
+
+          <label for="register-password">Password</label>
+          <input id="register-password" type="password" minlength="4" required />
+
+          <button type="submit">Create Account</button>
+        </form>
+
+        <p id="auth-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section id="booking-section" class="card hidden">
+        <p id="welcome-text" class="welcome"></p>
+
+        <form id="booking-form" class="form" autocomplete="off">
+          <label for="movie">Select Movie</label>
+          <select id="movie" required>
+            <option value="" selected disabled>Choose a movie</option>
+            <option value="Inception" data-price="250">Inception - ₹250</option>
+            <option value="Interstellar" data-price="280">Interstellar - ₹280</option>
+            <option value="Avatar" data-price="300">Avatar - ₹300</option>
+            <option value="Dune" data-price="260">Dune - ₹260</option>
+          </select>
+
+          <label for="showtime">Show Time</label>
+          <select id="showtime" required>
+            <option value="" selected disabled>Choose a show time</option>
+            <option>10:00 AM</option>
+            <option>2:00 PM</option>
+            <option>6:00 PM</option>
+            <option>9:30 PM</option>
+          </select>
+
+          <label for="tickets">Number of Tickets</label>
+          <input id="tickets" type="number" min="1" max="10" value="1" required />
+
+          <button type="submit">Book Tickets</button>
+        </form>
+
+        <p id="booking-result" class="message" aria-live="polite"></p>
+        <button id="logout" type="button" class="secondary">Logout</button>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
